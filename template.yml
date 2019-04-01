@@ -1,0 +1,190 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform: AWS::Serverless-2016-10-31
+
+Metadata:
+  AWS::ServerlessRepo::Application:
+    Name: serverless-mkr-monitors
+    Description: serverless-mkr-monitors is a serverless application for version control of monitoring settings in Mackerel to the GitHub repository.
+    Author: cohalz
+    Labels: [mackerel,mkr,monitoring,github,lambda,api-gateway,codebuild]
+    SemanticVersion: 1.0.0
+    SpdxLicenseId: Apache-2.0
+    LicenseUrl: LICENSE.txt
+    SourceCodeUrl: https://github.com/cohalz/serverless-mkr-monitors
+
+Parameters:
+  GitHubRepository:
+    Type: String
+  MackerelAPIKey:
+    Type: String
+  GitHubUser:
+    Type: String
+  GitHubEmail:
+    Type: String
+  GitHubToken:
+    Type: String
+  DockerImage:
+    Type: String
+    Default: docker.io/cohalz/mkr-with-git
+
+Resources:
+  Function:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: serverless-mkr-monitors
+      CodeUri: src
+      Handler: index.handler
+      Runtime: python3.6
+      AutoPublishAlias: live
+      Timeout: 10
+      MemorySize: 128
+      Role: !GetAtt RoleForLambda.Arn
+      Environment:
+        Variables:
+          CODEBUILD_PROJECT: !Ref CodeBuildProject
+
+  Api:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      DefinitionBody:
+        swagger: "2.0"
+        info:
+          title: serverless-mkr-monitors
+        schemes:
+          - https
+        paths:
+          /:
+            post:
+              x-amazon-apigateway-integration:
+                responses:
+                  default:
+                    statusCode: "200"
+                uri:
+                  Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${Function.Arn}/invocations
+                passthroughBehavior: "when_no_match"
+                httpMethod: "POST"
+                contentHandling: "CONVERT_TO_TEXT"
+                type: "aws_proxy"
+
+  LambdaPermission:
+    Type: "AWS::Lambda::Permission"
+    DependsOn:
+      - Function
+    Properties:
+      FunctionName: !GetAtt Function.Arn
+      Action: lambda:InvokeFunction
+      Principal: apigateway.amazonaws.com
+
+  RoleForLambda:
+    Type: "AWS::IAM::Role"
+    Properties:
+      RoleName: serverless-mkr-monitors-for-lambda
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: PolicyForMkrMonitorsLambda
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: "codebuild:StartBuild"
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+
+  LogGroupForLambda:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/lambda/${Function}
+      RetentionInDays: 7
+
+  LogGroupForCodeBuild:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /aws/codebuild/${CodeBuildProject}
+      RetentionInDays: 7
+
+  RoleForCodeBuild:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: serverless-mkr-monitors-for-codebuild
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service:
+                - "codebuild.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: /service-role/
+      Policies:
+        - PolicyName: "CodeBuildAccessPolicies"
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: "Allow"
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource:
+                  - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/*
+
+  CodeBuildProject:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: serverless-mkr-monitors
+      ServiceRole: !GetAtt RoleForCodeBuild.Arn
+      Artifacts:
+        Type: no_artifacts
+      Environment:
+        Type: LINUX_CONTAINER
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: !Ref DockerImage
+        EnvironmentVariables:
+          - Name: COMMIT_MESSAGE
+            Value: update
+          - Name: MACKEREL_APIKEY
+            Value: !Ref MackerelAPIKey
+          - Name: GITHUB_REPOSITORY
+            Value: !Ref GitHubRepository
+          - Name: GITHUB_USER
+            Value: !Ref GitHubUser
+          - Name: GITHUB_EMAIL
+            Value: !Ref GitHubEmail
+          - Name: GITHUB_TOKEN
+            Value: !Ref GitHubToken
+      Source:
+        Type: NO_SOURCE
+        BuildSpec: |-
+          {
+            "version": "0.2",
+            "phases": {
+              "build": {
+                "commands": [
+                  "git clone --depth 1 https://\"${GITHUB_USER}\":\"${GITHUB_TOKEN}\"@github.com/\"${GITHUB_REPOSITORY}\".git monitors-repository && cd monitors-repository",
+                  "git config --local user.name \"${GITHUB_USER}\"",
+                  "git config --local user.email \"${GITHUB_EMAIL}\"",
+                  "mkr monitors pull",
+                  "git add monitors.json",
+                  "git commit -m \"${COMMIT_MESSAGE}\"",
+                  "git push origin HEAD"
+                ]
+              }
+            }
+          }
+
+Outputs:
+  ApiEndpoint:
+    Value: !Sub https://${Api}.execute-api.${AWS::Region}.amazonaws.com/${Api.Stage}
