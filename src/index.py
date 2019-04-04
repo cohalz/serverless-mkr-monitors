@@ -20,7 +20,7 @@ def handler(event, context):
         projectName=os.environ["CODEBUILD_PROJECT"],
         environmentVariablesOverride=[{
             'name': 'COMMIT_MESSAGE',
-            'value': f"{payload['event']}: {payload['monitor']['name']}"
+            'value': f"{payload['event']}: {payload['monitor']['name']} by {payload['user']['screenName']}"
         }]
     )
 
