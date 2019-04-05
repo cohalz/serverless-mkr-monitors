@@ -7,7 +7,7 @@ Metadata:
     Description: serverless-mkr-monitors is a serverless application for version control of monitoring settings in Mackerel to the GitHub repository.
     Author: cohalz
     Labels: [mackerel,mkr,monitoring,github,lambda,api-gateway,codebuild]
-    SemanticVersion: 1.0.1
+    SemanticVersion: 1.0.0
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     SourceCodeUrl: https://github.com/cohalz/serverless-mkr-monitors
@@ -31,7 +31,7 @@ Resources:
   Function:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: serverless-mkr-monitors
+      FunctionName: !Ref AWS::StackName
       CodeUri: src
       Handler: index.handler
       Runtime: python3.6
@@ -50,7 +50,7 @@ Resources:
       DefinitionBody:
         swagger: "2.0"
         info:
-          title: serverless-mkr-monitors
+          title: !Ref AWS::StackName
         schemes:
           - https
         paths:
@@ -79,7 +79,7 @@ Resources:
   RoleForLambda:
     Type: "AWS::IAM::Role"
     Properties:
-      RoleName: serverless-mkr-monitors-for-lambda
+      RoleName: !Sub ${AWS::StackName}-for-lambda
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -88,7 +88,7 @@ Resources:
               Service: lambda.amazonaws.com
             Action: "sts:AssumeRole"
       Policies:
-        - PolicyName: PolicyForMkrMonitorsLambda
+        - PolicyName: LambdaExecutionPolicies
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -117,7 +117,7 @@ Resources:
   RoleForCodeBuild:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: serverless-mkr-monitors-for-codebuild
+      RoleName: !Sub ${AWS::StackName}-for-codebuild
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -129,7 +129,7 @@ Resources:
               - "sts:AssumeRole"
       Path: /service-role/
       Policies:
-        - PolicyName: "CodeBuildAccessPolicies"
+        - PolicyName: CodeBuildAccessPolicies
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
@@ -144,7 +144,7 @@ Resources:
   CodeBuildProject:
     Type: AWS::CodeBuild::Project
     Properties:
-      Name: serverless-mkr-monitors
+      Name: !Ref AWS::StackName
       ServiceRole: !GetAtt RoleForCodeBuild.Arn
       Artifacts:
         Type: no_artifacts
