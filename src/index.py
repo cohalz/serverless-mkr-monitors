@@ -1,18 +1,12 @@
-import urllib.request
 import json
-import urllib.parse
 import boto3
 import os
 
 
 def handler(event, context):
 
-    print(event)
-
-    payload = json.loads(urllib.parse.unquote_plus(event['body']))
+    payload = json.loads(event['body'])
     print(payload)
-
-    response = {}
 
     client = boto3.client('codebuild')
 
@@ -24,7 +18,7 @@ def handler(event, context):
         }]
     )
 
-    response['statusCode'] = 200
-    response['body'] = "ok"
-
-    return response
+    return {
+        'statusCode': 200,
+        'body': 'ok'
+    }
