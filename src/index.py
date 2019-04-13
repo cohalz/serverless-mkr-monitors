@@ -5,16 +5,18 @@ import os
 
 def handler(event, context):
 
-    payload = json.loads(event['body'])
-    print(payload)
-
     client = boto3.client('codebuild')
 
+    payload = json.loads(event['body'])
+
+    operator = get_operator(payload['user'])
+
     client.start_build(
-        projectName=os.environ["CODEBUILD_PROJECT"],
+        projectName=os.environ['CODEBUILD_PROJECT'],
         environmentVariablesOverride=[{
             'name': 'COMMIT_MESSAGE',
-            'value': f"{payload['event']}: {payload['monitor']['name']} by {payload['user']['screenName']}"
+            'value': f"{payload['event']}: "
+                     f"{payload['monitor']['name']} by {operator}"
         }]
     )
 
@@ -22,3 +24,10 @@ def handler(event, context):
         'statusCode': 200,
         'body': 'ok'
     }
+
+
+def get_operator(user):
+    if user is not None:
+        return user['screenName']
+    else:
+        return 'mkr monitors push'
