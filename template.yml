@@ -177,8 +177,7 @@ Resources:
                   "git config --local user.name \"${GITHUB_USER}\"",
                   "git config --local user.email \"${GITHUB_EMAIL}\"",
                   "mkr monitors pull",
-                  "git add monitors.json",
-                  "git commit -m \"${COMMIT_MESSAGE}\"",
+                  "git add monitors.json && git diff --cached --exit-code --quiet || git commit -m \"${COMMIT_MESSAGE}\"",
                   "git push origin HEAD"
                 ]
               }
