@@ -26,6 +26,9 @@ Parameters:
   DockerImage:
     Type: String
     Default: docker.io/cohalz/mkr-with-git
+  GitBranch:
+    Type: String
+    Default: master
 
 Resources:
   Function:
@@ -165,6 +168,8 @@ Resources:
             Value: !Ref GitHubEmail
           - Name: GITHUB_TOKEN
             Value: !Ref GitHubToken
+          - Name: GIT_BRANCH
+            Value: !Ref GitBranch
       Source:
         Type: NO_SOURCE
         BuildSpec: |-
@@ -173,7 +178,7 @@ Resources:
             "phases": {
               "build": {
                 "commands": [
-                  "git clone --depth 1 https://\"${GITHUB_USER}\":\"${GITHUB_TOKEN}\"@github.com/\"${GITHUB_REPOSITORY}\".git monitors-repository && cd monitors-repository",
+                  "git clone -b \"${GIT_BRANCH}\" --depth 1 https://\"${GITHUB_USER}\":\"${GITHUB_TOKEN}\"@github.com/\"${GITHUB_REPOSITORY}\".git monitors-repository && cd monitors-repository",
                   "git config --local user.name \"${GITHUB_USER}\"",
                   "git config --local user.email \"${GITHUB_EMAIL}\"",
                   "mkr monitors pull",
