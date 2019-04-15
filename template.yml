@@ -7,7 +7,7 @@ Metadata:
     Description: serverless-mkr-monitors is a serverless application for version control of monitoring settings in Mackerel to the GitHub repository.
     Author: cohalz
     Labels: [mackerel,mkr,monitoring,github,lambda,api-gateway,codebuild]
-    SemanticVersion: 1.0.0
+    SemanticVersion: 1.0.1
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     SourceCodeUrl: https://github.com/cohalz/serverless-mkr-monitors
@@ -176,13 +176,26 @@ Resources:
           {
             "version": "0.2",
             "phases": {
-              "build": {
+              "install": {
                 "commands": [
-                  "git clone -b \"${GIT_BRANCH}\" --depth 1 https://\"${GITHUB_USER}\":\"${GITHUB_TOKEN}\"@github.com/\"${GITHUB_REPOSITORY}\".git monitors-repository && cd monitors-repository",
+                  "mkr monitors pull"
+                ]
+              },
+              "pre_build": {
+                "commands": [
+                  "git clone -b \"${GIT_BRANCH}\" --depth 1 https://\"${GITHUB_USER}\":\"${GITHUB_TOKEN}\"@github.com/\"${GITHUB_REPOSITORY}\".git monitors-repo && cd monitors-repo",
                   "git config --local user.name \"${GITHUB_USER}\"",
                   "git config --local user.email \"${GITHUB_EMAIL}\"",
-                  "mkr monitors pull",
+                ]
+              },
+              "build": {
+                "commands": [
+                  "mv -f ../monitors.json .",
                   "git add monitors.json && git diff --cached --exit-code --quiet || git commit -m \"${COMMIT_MESSAGE}\"",
+                ]
+              },
+              "post_build": {
+                "commands": [
                   "git push origin HEAD"
                 ]
               }
