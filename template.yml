@@ -7,7 +7,7 @@ Metadata:
     Description: serverless-mkr-monitors is a serverless application for version control of monitoring settings in Mackerel to the GitHub repository.
     Author: cohalz
     Labels: [mackerel,mkr,monitoring,github,lambda,api-gateway,codebuild]
-    SemanticVersion: 1.0.2
+    SemanticVersion: 1.0.3
     SpdxLicenseId: Apache-2.0
     LicenseUrl: LICENSE.txt
     SourceCodeUrl: https://github.com/cohalz/serverless-mkr-monitors
@@ -37,7 +37,7 @@ Resources:
       FunctionName: !Ref AWS::StackName
       CodeUri: src
       Handler: index.handler
-      Runtime: python3.6
+      Runtime: python3.9
       AutoPublishAlias: live
       Timeout: 10
       MemorySize: 128
